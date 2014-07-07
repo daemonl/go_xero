@@ -2,9 +2,8 @@ package xero
 
 import (
 	"encoding/json"
-	"fmt"
-
-	"github.com/daemonl/go_xero/xero_objects"
+	"log"
+	"strings"
 )
 
 type Xero struct {
@@ -12,9 +11,9 @@ type Xero struct {
 }
 
 type OAuth interface {
-	DoGET(apiPath string) ([]byte, error)
-	DoPOST(apiPath string, body []byte) ([]byte, error)
-	DoPUT(apiPath string, body []byte) ([]byte, error)
+	DoGET(apiPath string) ([]byte, int, error)
+	DoPOST(apiPath string, body []byte) ([]byte, int, error)
+	DoPUT(apiPath string, body []byte) ([]byte, int, error)
 }
 
 func GetXeroPrivateCore(keyFilename string, key string) (*Xero, error) {
@@ -34,35 +33,126 @@ func GetXeroPrivateCore(keyFilename string, key string) (*Xero, error) {
 	return xero, nil
 }
 
-func (x *Xero) GetToObject(apiPath string, dest interface{}) error {
-	rawBytes, err := x.OAuth.DoGET(apiPath)
+func (x *Xero) Get(objectType string, pathParameters ...string) (interface{}, error) {
+	apiPath := preparePath(objectType, pathParameters...)
+	rawBytes, status, err := x.OAuth.DoGET(apiPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = json.Unmarshal(rawBytes, dest)
-	if err != nil {
-		return err
-	}
-	return nil
+	return genericResponse(rawBytes, status)
 }
 
-func (x *Xero) PostObject(apiPath string, obj interface{}, dest interface{}) error {
-	body, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(body))
-	resp, err := x.OAuth.DoPOST(apiPath, body)
-	fmt.Println(string(resp))
+func (x *Xero) Post(objectType string, obj interface{}, pathParameters ...string) (interface{}, error) {
 
-	err = json.Unmarshal(resp, dest)
-	if err != nil {
-		return err
+	// Prepare {invoices:[{...}]}
+	requestObject := map[string]interface{}{}
+
+	objectType = strings.Title(objectType)
+	requestObject[objectType] = []interface{}{
+		obj,
 	}
-	return nil
+
+	body, err := json.Marshal(requestObject)
+	if err != nil {
+		return nil, err
+	}
+
+	apiPath := preparePath(objectType, pathParameters...)
+
+	log.Printf("XERO POST %s\n%s\n", apiPath, string(body))
+	resp, status, err := x.OAuth.DoPOST(apiPath, body)
+	if err != nil {
+		log.Printf("XERO Error Response\nRESP: %s\nERR: %s\n", string(resp), err.Error())
+		return nil, err
+	}
+
+	log.Printf("XERO Response: %s\n", string(resp))
+
+	return genericResponse(resp, status)
 }
 
+func preparePath(objectType string, pathParameters ...string) string {
+
+	apiPath := objectType
+	for i, param := range pathParameters {
+		if i > 0 && param[0:1] != "?" {
+			apiPath += "/"
+		}
+		apiPath += param
+	}
+	return apiPath
+}
+
+func genericResponse(resp []byte, status int) (interface{}, error) {
+
+	switch status {
+	case 200: // OK
+		var dest interface{}
+		err := json.Unmarshal(resp, &dest)
+		return resp, err
+
+	case 400: // Bad Request
+		var dest APIException
+		err := json.Unmarshal(resp, &dest)
+		if err != nil {
+			return nil, err
+		}
+		dest.HTTPStatus = status
+		// Return as an error
+		return nil, &dest
+
+	case 401:
+		return nil, &APIException{
+			HTTPStatus: 401,
+			Message:    "Invalid Authorization Credentials",
+			Type:       "HTTP",
+		}
+
+	case 403:
+		return nil, &APIException{
+			HTTPStatus: 403,
+			Message:    "The client SSL certificate was not valid.",
+			Type:       "HTTP",
+		}
+
+	case 404:
+		return nil, &APIException{
+			HTTPStatus: 404,
+			Message:    "Not Found",
+			Type:       "HTTP",
+		}
+
+	case 500:
+		return nil, &APIException{
+			HTTPStatus: 500,
+			Message:    "Xero Server Error",
+			Type:       "HTTP",
+		}
+
+	case 501:
+		return nil, &APIException{
+			HTTPStatus: 501,
+			Message:    "Not Implemented",
+			Type:       "HTTP",
+		}
+	case 503:
+		return nil, &APIException{
+			HTTPStatus: 503,
+			Message:    "Rate Limited or service unavailable",
+			Type:       "HTTP",
+		}
+	}
+
+	return nil, &APIException{
+		HTTPStatus: status,
+		Message:    "Unknown Status Code",
+		Type:       "HTTP",
+	}
+
+}
+
+/*
 func (x *Xero) GetInvoice(invoiceID string) (*xero_objects.Invoice, error) {
 	response := &xero_objects.InvoiceResponse{}
 	err := x.GetToObject("Invoice/"+invoiceID, response)
@@ -94,3 +184,4 @@ func (x *Xero) PostInvoice(invoice *xero_objects.Invoice) (*xero_objects.Invoice
 	}
 	return response.Invoices[0], nil
 }
+*/

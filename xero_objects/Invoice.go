@@ -56,16 +56,17 @@ type InvoiceRequest struct {
 
 type Invoice struct {
 	ID                  string                `json:"InvoiceID,omitempty"`
-	Type                InvoiceType           `json:"Type"`
-	Status              *InvoiceStatus        `json:"Status,omitempty"`
-	Contact             *Contact              `json:"Contact,omitempty"`
-	Date                *string               `json:"Date,omitempty"`
-	DueDate             *string               `json:"DueDate,omitempty"`
-	ExpectedPaymentDate *string               `json:"ExpectedPaymentDate,omitempty"`
-	Reference           *string               `json:"Reference,omitempty"`
-	BrandingThemeID     *string               `json:"BrandingThemeID,omitempty"`
-	URL                 *string               `json:"Url,omitempty"`
-	CurrencyCode        *string               `json:"CurrencyCode,omitempty"`
+	InvoiceNumber       string                `json:"InvoiceNumber,omitempty"`
+	Type                InvoiceType           `json:"Type,omitempty"`
+	Status              InvoiceStatus        `json:"Status,omitempty"`
+	Contact             Contact              `json:"Contact,omitempty"`
+	Date                string               `json:"Date,omitempty"`
+	DueDate             string               `json:"DueDate,omitempty"`
+	ExpectedPaymentDate string               `json:"ExpectedPaymentDate,omitempty"`
+	Reference           string               `json:"Reference,omitempty"`
+	BrandingThemeID     string               `json:"BrandingThemeID,omitempty"`
+	URL                 string               `json:"Url,omitempty"`
+	CurrencyCode        string               `json:"CurrencyCode,omitempty"`
 	LineAmountTypes     InvoiceLineAmountType `json:"LineAmountType,omitempty"`
 	SubTotal            *float64              `json:"SubTotal,omitempty"`
 	Total               *float64              `json:"Total,omitempty"`

@@ -26,16 +26,16 @@ type xeroPrivateOAuth struct {
 	payrollVersion string
 }
 
-func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Reader) ([]byte, error) {
+func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Reader) ([]byte, int, error) {
 
 	req, err := http.NewRequest(method, requestURI, nil)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
 	parsedURL, err := url.Parse(requestURI)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
 	requestTime := time.Now()
@@ -69,7 +69,7 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Re
 
 	signature, err := x.signRequest([]byte(baseString))
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
 	oaHeader.Add("oauth_signature", signature)
@@ -93,14 +93,14 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Re
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
-	return bodyBytes, nil
+	return bodyBytes, resp.StatusCode, nil
 }
 
 func (x *xeroPrivateOAuth) signRequest(baseString []byte) (string, error) {
@@ -119,28 +119,29 @@ func (x *xeroPrivateOAuth) signRequest(baseString []byte) (string, error) {
 	return sigStr, nil
 }
 
-func (x *xeroPrivateOAuth) DoGET(apiPath string) ([]byte, error) {
-	resp, err := x.doSecureRequest("GET", "https://api.xero.com/api.xro/2.0/"+apiPath, nil)
+func (x *xeroPrivateOAuth) DoGET(apiPath string) ([]byte, int, error) {
+	resp, status, err := x.doSecureRequest("GET", "https://api.xero.com/api.xro/2.0/"+apiPath, nil)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
+
 	}
-	return resp, nil
+	return resp, status, nil
 }
-func (x *xeroPrivateOAuth) DoPOST(apiPath string, body []byte) ([]byte, error) {
+func (x *xeroPrivateOAuth) DoPOST(apiPath string, body []byte) ([]byte, int, error) {
 	bodyReader := &bytes.Buffer{}
 	bodyReader.Write(body)
-	resp, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
+	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
-	return resp, nil
+	return resp, status, nil
 }
-func (x *xeroPrivateOAuth) DoPUT(apiPath string, body []byte) ([]byte, error) {
+func (x *xeroPrivateOAuth) DoPUT(apiPath string, body []byte) ([]byte, int, error) {
 	bodyReader := &bytes.Buffer{}
 	bodyReader.Write(body)
-	resp, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
+	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
-	return resp, nil
+	return resp, status, nil
 }
