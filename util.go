@@ -3,6 +3,7 @@ package xero
 import (
 	"net/url"
 	"sort"
+	"strings"
 )
 
 type Pair struct {
@@ -23,6 +24,16 @@ func (op *OrderedPairs) Add(k, v string) {
 	op.pairs = append(op.pairs, Pair{K: k, V: v})
 }
 
+func (op *OrderedPairs) Clone() *OrderedPairs {
+	newOp := make([]Pair, len(op.pairs), len(op.pairs))
+	for i, p := range op.pairs {
+		newOp[i] = p
+	}
+	return &OrderedPairs{
+		pairs: newOp,
+	}
+}
+
 func (op *OrderedPairs) Len() int {
 	return len(op.pairs)
 }
@@ -36,5 +47,7 @@ func (op *OrderedPairs) Less(i, j int) bool {
 }
 
 func percentEscapeLight(in string) string {
-	return url.QueryEscape(in)
+	v := url.QueryEscape(in)
+	v = strings.Replace(v, "+", "%20", -1)
+	return v
 }

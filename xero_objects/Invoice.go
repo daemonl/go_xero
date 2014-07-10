@@ -1,5 +1,9 @@
 package xero_objects
 
+import (
+	"encoding/xml"
+)
+
 type InvoiceType string
 
 const (
@@ -51,38 +55,39 @@ type InvoiceResponse struct {
 }
 
 type InvoiceRequest struct {
-	Invoices []*Invoice `json:"Invoices"`
+	XMLName xml.Name   `xml:"Invoices"`
+	Invoices []*Invoice `json:"Invoices" xml:"Invoice"`
 }
 
 type Invoice struct {
-	ID                  string                `json:"InvoiceID,omitempty"`
-	InvoiceNumber       string                `json:"InvoiceNumber,omitempty"`
-	Type                InvoiceType           `json:"Type,omitempty"`
-	Status              InvoiceStatus        `json:"Status,omitempty"`
-	Contact             Contact              `json:"Contact,omitempty"`
-	Date                string               `json:"Date,omitempty"`
-	DueDate             string               `json:"DueDate,omitempty"`
-	ExpectedPaymentDate string               `json:"ExpectedPaymentDate,omitempty"`
-	Reference           string               `json:"Reference,omitempty"`
-	BrandingThemeID     string               `json:"BrandingThemeID,omitempty"`
-	URL                 string               `json:"Url,omitempty"`
-	CurrencyCode        string               `json:"CurrencyCode,omitempty"`
-	LineAmountTypes     InvoiceLineAmountType `json:"LineAmountType,omitempty"`
-	SubTotal            *float64              `json:"SubTotal,omitempty"`
-	Total               *float64              `json:"Total,omitempty"`
-	TotalTax            *float64              `json:"TotalTax,omitempty"`
-	LineItems           []InvoiceLineItem     `json:"LineItems"`
+	ID                  string                `json:"InvoiceID,omitempty" xml:"InvoiceID,omitempty"`
+	InvoiceNumber       string                `json:"InvoiceNumber,omitempty" xml:"InvoiceNumber,omitempty"`
+	Type                InvoiceType           `json:"Type,omitempty" xml:"Type,omitempty"`
+	Status              InvoiceStatus         `json:"Status,omitempty" xml:"Status,omitempty"`
+	Contact             Contact               `json:"Contact,omitempty" xml:"Contact,omitempty"`
+	Date                string                `json:"Date,omitempty" xml:"Date,omitempty"`
+	DueDate             string                `json:"DueDate,omitempty" xml:"DueDate,omitempty"`
+	ExpectedPaymentDate string                `json:"ExpectedPaymentDate,omitempty" xml:"ExpectedPaymentDate,omitempty"`
+	Reference           string                `json:"Reference,omitempty" xml:"Reference,omitempty"`
+	BrandingThemeID     string                `json:"BrandingThemeID,omitempty" xml:"BrandingThemeID,omitempty"`
+	URL                 string                `json:"Url,omitempty" xml:"Url,omitempty"`
+	CurrencyCode        string                `json:"CurrencyCode,omitempty" xml:"CurrencyCode,omitempty"`
+	LineAmountTypes     InvoiceLineAmountType `json:"LineAmountType,omitempty" xml:"LineAmountType,omitempty"`
+	SubTotal            *float64              `json:"SubTotal,omitempty" xml:"SubTotal,omitempty"`
+	Total               *float64              `json:"Total,omitempty" xml:"Total,omitempty"`
+	TotalTax            *float64              `json:"TotalTax,omitempty" xml:"TotalTax,omitempty"`
+	LineItems           []InvoiceLineItem     `json:"LineItems" xml:"LineItems>LineItem"`
 }
 
 type InvoiceLineItem struct {
-	Description string  `json:"Description"`
-	Quantity    float64 `json:"Quantity"`
-	UnitAmount  float64 `json:"UnitAmount"`
-	ItemCode    string  `json:"ItemCode,omitempty"`
-	AccountCode string  `json:"AccountCode"`
+	Description string  `json:"Description" xml:"Description"`
+	Quantity    float64 `json:"Quantity" xml:"Quantity"`
+	UnitAmount  float64 `json:"UnitAmount" xml:"UnitAmount"`
+	ItemCode    string  `json:"ItemCode,omitempty" xml:"ItemCode,omitempty"`
+	AccountCode string  `json:"AccountCode" xml:"AccountCode"`
 
-	TaxType      *InvoiceLineTaxType `json:"TaxType,omitempty"`
-	TaxAmount    *float64            `json:"TaxAmount,omitempty"`
-	LineAmount   *float64            `json:"LineAmount,omitempty"`
-	DiscountRate *float64            `json:"DiscountRate,omitempty"`
+	TaxType      *InvoiceLineTaxType `json:"TaxType,omitempty" xml:"TaxType,omitempty"`
+	TaxAmount    *float64            `json:"TaxAmount,omitempty" xml:"TaxAmount,omitempty"`
+	LineAmount   *float64            `json:"LineAmount,omitempty" xml:"LineAmount,omitempty"`
+	DiscountRate *float64            `json:"DiscountRate,omitempty" xml:"DiscountRate,omitempty"`
 }

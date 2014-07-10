@@ -1,18 +1,17 @@
 package xero
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
-
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	//"os"
 	"strings"
 	"time"
 )
@@ -26,9 +25,18 @@ type xeroPrivateOAuth struct {
 	payrollVersion string
 }
 
-func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Reader) ([]byte, int, error) {
+func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body []byte) ([]byte, int, error) {
+	fmt.Printf("DSR: M: %s, URI: %s, Body: \n-----\n%s\n-----\n", method, requestURI, string(body))
 
-	req, err := http.NewRequest(method, requestURI, nil)
+	var bodyReader *bytes.Buffer
+	if len(body) > 0 {
+		bodyReader = &bytes.Buffer{}
+		bodyReader.Write([]byte("xml="))
+		encodedBody := percentEscapeLight(string(body))
+		bodyReader.WriteString(encodedBody)
+	}
+
+	req, err := http.NewRequest(method, requestURI, bodyReader)
 	if err != nil {
 		return []byte{}, 0, err
 	}
@@ -57,9 +65,12 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Re
 	oaHeader.Add("oauth_token", x.consumerKey)
 	oaHeader.Add("oauth_version", "1.0")
 
-	parts := make([]string, oaHeader.Len(), oaHeader.Len())
+	allParts := oaHeader.Clone()
+	allParts.Add("xml", string(body))
 
-	for i, pair := range oaHeader.GetPairs() {
+	parts := make([]string, allParts.Len(), allParts.Len())
+
+	for i, pair := range allParts.GetPairs() {
 		parts[i] = percentEscapeLight(pair.K) + "=" + percentEscapeLight(pair.V)
 	}
 
@@ -67,6 +78,7 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Re
 
 	baseString := method + "&" + percentEscapeLight(baseURL) + "&" + percentEscapeLight(paramString)
 
+	fmt.Println(baseString)
 	signature, err := x.signRequest([]byte(baseString))
 	if err != nil {
 		return []byte{}, 0, err
@@ -82,13 +94,12 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body io.Re
 	oauthHeaderString := "OAuth " + strings.Join(sigStringParts, ",")
 
 	req.Header.Add("Authorization", oauthHeaderString)
-	req.Header.Add("Accept", "application/json")
+	//req.Header.Add("Accept", "application/json")
 
 	client := &http.Client{}
 
-	if body != nil {
-		noOpCloser := ioutil.NopCloser(body)
-		req.Body = noOpCloser
+	if len(body) > 0 {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
 	resp, err := client.Do(req)
@@ -120,7 +131,7 @@ func (x *xeroPrivateOAuth) signRequest(baseString []byte) (string, error) {
 }
 
 func (x *xeroPrivateOAuth) DoGET(apiPath string) ([]byte, int, error) {
-	resp, status, err := x.doSecureRequest("GET", "https://api.xero.com/api.xro/2.0/"+apiPath, nil)
+	resp, status, err := x.doSecureRequest("GET", "https://api.xero.com/"+apiPath, nil)
 	if err != nil {
 		return []byte{}, 0, err
 
@@ -128,18 +139,14 @@ func (x *xeroPrivateOAuth) DoGET(apiPath string) ([]byte, int, error) {
 	return resp, status, nil
 }
 func (x *xeroPrivateOAuth) DoPOST(apiPath string, body []byte) ([]byte, int, error) {
-	bodyReader := &bytes.Buffer{}
-	bodyReader.Write(body)
-	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
+	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/"+apiPath, body)
 	if err != nil {
 		return []byte{}, 0, err
 	}
 	return resp, status, nil
 }
 func (x *xeroPrivateOAuth) DoPUT(apiPath string, body []byte) ([]byte, int, error) {
-	bodyReader := &bytes.Buffer{}
-	bodyReader.Write(body)
-	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/api.xro/2.0/"+apiPath, bodyReader)
+	resp, status, err := x.doSecureRequest("POST", "https://api.xero.com/"+apiPath, body)
 	if err != nil {
 		return []byte{}, 0, err
 	}

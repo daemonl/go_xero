@@ -2,6 +2,9 @@ package xero
 
 import (
 	"encoding/json"
+	"encoding/xml"
+	"fmt"
+	"github.com/daemonl/go_xero/xero_objects"
 	"log"
 	"strings"
 )
@@ -9,6 +12,9 @@ import (
 type Xero struct {
 	OAuth OAuth
 }
+
+var normalApiPath string = "api.xro/2.0"
+var payrollApiPath string = "payroll.xro/1.0"
 
 type OAuth interface {
 	DoGET(apiPath string) ([]byte, int, error)
@@ -33,9 +39,9 @@ func GetXeroPrivateCore(keyFilename string, key string) (*Xero, error) {
 	return xero, nil
 }
 
-func (x *Xero) Get(objectType string, pathParameters ...string) (interface{}, error) {
+func (x *Xero) Get(pathBase string, objectType string, pathParameters ...string) (interface{}, error) {
 	apiPath := preparePath(objectType, pathParameters...)
-	rawBytes, status, err := x.OAuth.DoGET(apiPath)
+	rawBytes, status, err := x.OAuth.DoGET(pathBase + "/" + apiPath)
 	if err != nil {
 		return nil, err
 	}
@@ -46,22 +52,63 @@ func (x *Xero) Get(objectType string, pathParameters ...string) (interface{}, er
 func (x *Xero) Post(objectType string, obj interface{}, pathParameters ...string) (interface{}, error) {
 
 	// Prepare {invoices:[{...}]}
-	requestObject := map[string]interface{}{}
+	var requestObject interface{}
+	var requestObjectInner interface{}
+	var basePath string
 
-	objectType = strings.Title(objectType)
-	requestObject[objectType] = []interface{}{
-		obj,
+	switch strings.ToLower(objectType) {
+	case "invoices":
+		inv := &xero_objects.Invoice{}
+		requestObjectInner = inv
+		requestObject = xero_objects.InvoiceRequest{
+			Invoices: []*xero_objects.Invoice{
+				inv,
+			},
+		}
+		basePath = normalApiPath
+		objectType = "Invoices"
+	case "leaveapplications":
+		lar := &xero_objects.LeaveApplication{}
+		requestObjectInner = lar
+		requestObject = xero_objects.LeaveApplicationRequest{
+			LeaveApplications: []*xero_objects.LeaveApplication{
+				lar,
+			},
+		}
+		basePath = payrollApiPath
+		objectType = "LeaveApplications"
+	default:
+		log.Println("NO CAN HAS %s", objectType)
+		return nil, fmt.Errorf("Object type %s is not yet implemented", objectType)
 	}
 
-	body, err := json.Marshal(requestObject)
+	log.Printf("XERO POST %s\n", objectType)
+
+	// This is not very efficient. Marshal the request interface{} to JSON,
+	// Unmarshal it into the correct object type
+	// Marshal THAT as xml.
+	// To improve, this step should be skipped if the request is the correct type.
+
+	roBytes, err := json.Marshal(obj)
 	if err != nil {
+		log.Printf("JSON Marshal: %s\n", err.Error)
 		return nil, err
 	}
 
+	err = json.Unmarshal(roBytes, &requestObjectInner)
+	if err != nil {
+		log.Printf("JSON UnMarshal: %s\n", err.Error())
+		return nil, err
+	}
+
+	body, err := xml.Marshal(requestObject)
+	if err != nil {
+		log.Printf("XML Marshal: %s\n", err.Error)
+		return nil, err
+	}
 	apiPath := preparePath(objectType, pathParameters...)
 
-	log.Printf("XERO POST %s\n%s\n", apiPath, string(body))
-	resp, status, err := x.OAuth.DoPOST(apiPath, body)
+	resp, status, err := x.OAuth.DoPOST(basePath+"/"+apiPath, body)
 	if err != nil {
 		log.Printf("XERO Error Response\nRESP: %s\nERR: %s\n", string(resp), err.Error())
 		return nil, err
