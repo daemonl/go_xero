@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/daemonl/go_xero/xero_objects"
 	"log"
 	"strings"
+
+	"github.com/daemonl/go_xero/xero_objects"
 )
 
 type Xero struct {
@@ -136,7 +137,10 @@ func genericResponse(resp []byte, status int) (interface{}, error) {
 	switch status {
 	case 200: // OK
 		var dest interface{}
-		err := json.Unmarshal(resp, &dest)
+		err := xml.Unmarshal(resp, &dest)
+		if err != nil {
+			fmt.Println("Error unmarshalling xero response: %s\n", err.Error())
+		}
 		return resp, err
 
 	case 400: // Bad Request
