@@ -1,11 +1,9 @@
 package xero
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/daemonl/go_xero/xero_objects"
 )
@@ -50,40 +48,80 @@ func (x *Xero) Get(pathBase string, objectType string, pathParameters ...string)
 	return genericResponse(rawBytes, status)
 }
 
-func (x *Xero) Post(objectType string, obj interface{}, pathParameters ...string) (interface{}, error) {
+func (x *Xero) Post(obj interface{}, pathParameters ...string) (interface{}, error) {
 
 	// Prepare {invoices:[{...}]}
 	var requestObject interface{}
-	var requestObjectInner interface{}
+	var responseObject interface{}
+	var objectType string
 	var basePath string
 
-	switch strings.ToLower(objectType) {
-	case "invoices":
-		inv := &xero_objects.Invoice{}
-		requestObjectInner = inv
+	switch obj := obj.(type) {
+	case *xero_objects.Invoice:
 		requestObject = xero_objects.InvoiceRequest{
 			Invoices: []*xero_objects.Invoice{
-				inv,
+				obj,
 			},
 		}
 		basePath = normalApiPath
 		objectType = "Invoices"
-	case "leaveapplications":
-		lar := &xero_objects.LeaveApplication{}
-		requestObjectInner = lar
+		responseObject = &xero_objects.InvoiceResponse{}
+
+	case *xero_objects.LeaveApplication:
 		requestObject = xero_objects.LeaveApplicationRequest{
 			LeaveApplications: []*xero_objects.LeaveApplication{
-				lar,
+				obj,
 			},
 		}
 		basePath = payrollApiPath
 		objectType = "LeaveApplications"
+		//responseObject = &xero_objects.LeaveApplicationResponse{}
+
+	case *xero_objects.Timesheet:
+		requestObject = xero_objects.TimesheetRequest{
+			Timesheets: []*xero_objects.Timesheet{
+				obj,
+			},
+		}
+		basePath = payrollApiPath
+		objectType = "Timesheets"
+		responseObject = &xero_objects.TimesheetResponse{}
+
 	default:
-		log.Println("NO CAN HAS %s", objectType)
-		return nil, fmt.Errorf("Object type %s is not yet implemented", objectType)
+		log.Println("No handler exists for %T", obj)
+		return nil, fmt.Errorf("Object type %T is not yet implemented", obj)
 	}
 
-	log.Printf("XERO POST %s\n", objectType)
+	body, err := xml.Marshal(requestObject)
+	if err != nil {
+		log.Printf("XML Marshal: %s\n", err.Error)
+		return nil, err
+	}
+	apiPath := preparePath(objectType, pathParameters...)
+	log.Printf("XERO POST %s\n%s\n", apiPath, string(body))
+
+	resp, status, err := x.OAuth.DoPOST(basePath+"/"+apiPath, body)
+	if err != nil {
+		log.Printf("XERO Error Response\nRESP: %s\nERR: %s\n", string(resp), err.Error())
+		return nil, err
+	}
+
+	log.Printf("XERO Response Raw: %s\n", string(resp))
+
+	if status == 200 {
+		log.Printf("XERO OK\n")
+		err := xml.Unmarshal(resp, responseObject)
+		if err == nil {
+			return responseObject, nil
+		}
+		log.Printf("XERO Unmarshal error: %s\n", err.Error())
+	}
+
+	return genericResponse(resp, status)
+}
+
+/*
+func remarshal (){
 
 	// This is not very efficient. Marshal the request interface{} to JSON,
 	// Unmarshal it into the correct object type
@@ -101,24 +139,8 @@ func (x *Xero) Post(objectType string, obj interface{}, pathParameters ...string
 		log.Printf("JSON UnMarshal: %s\n", err.Error())
 		return nil, err
 	}
-
-	body, err := xml.Marshal(requestObject)
-	if err != nil {
-		log.Printf("XML Marshal: %s\n", err.Error)
-		return nil, err
-	}
-	apiPath := preparePath(objectType, pathParameters...)
-
-	resp, status, err := x.OAuth.DoPOST(basePath+"/"+apiPath, body)
-	if err != nil {
-		log.Printf("XERO Error Response\nRESP: %s\nERR: %s\n", string(resp), err.Error())
-		return nil, err
-	}
-
-	log.Printf("XERO Response: %s\n", string(resp))
-
-	return genericResponse(resp, status)
 }
+*/
 
 func preparePath(objectType string, pathParameters ...string) string {
 
@@ -134,6 +156,7 @@ func preparePath(objectType string, pathParameters ...string) string {
 
 func genericResponse(resp []byte, status int) (interface{}, error) {
 
+	log.Printf("Generic response, status: %d\n", status)
 	switch status {
 	case 200: // OK
 		var dest interface{}
@@ -141,11 +164,11 @@ func genericResponse(resp []byte, status int) (interface{}, error) {
 		if err != nil {
 			fmt.Println("Error unmarshalling xero response: %s\n", err.Error())
 		}
-		return resp, err
+		return string(resp), err
 
 	case 400: // Bad Request
 		var dest APIException
-		err := json.Unmarshal(resp, &dest)
+		err := xml.Unmarshal(resp, &dest)
 		if err != nil {
 			return nil, err
 		}

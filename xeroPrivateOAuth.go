@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	//"os"
@@ -26,16 +27,17 @@ type xeroPrivateOAuth struct {
 }
 
 func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body []byte) ([]byte, int, error) {
-	fmt.Printf("DSR: M: %s, URI: %s, Body: \n-----\n%s\n-----\n", method, requestURI, string(body))
+	//fmt.Printf("DSR: M: %s, URI: %s, Body: \n-----\n%s\n-----\n", method, requestURI, string(body))
 
-	var bodyReader *bytes.Buffer
+	var bodyReader *bytes.Buffer = &bytes.Buffer{}
 	if len(body) > 0 {
-		bodyReader = &bytes.Buffer{}
+		//bodyReader = &bytes.Buffer{}
 		bodyReader.Write([]byte("xml="))
 		encodedBody := percentEscapeLight(string(body))
 		bodyReader.WriteString(encodedBody)
 	}
 
+	log.Printf("XERO: %s %s\n", method, requestURI)
 	req, err := http.NewRequest(method, requestURI, bodyReader)
 	if err != nil {
 		return []byte{}, 0, err
@@ -66,7 +68,9 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body []byt
 	oaHeader.Add("oauth_version", "1.0")
 
 	allParts := oaHeader.Clone()
-	allParts.Add("xml", string(body))
+	if len(body) > 0 {
+		allParts.Add("xml", string(body))
+	}
 
 	parts := make([]string, allParts.Len(), allParts.Len())
 
@@ -78,7 +82,7 @@ func (x *xeroPrivateOAuth) doSecureRequest(method, requestURI string, body []byt
 
 	baseString := method + "&" + percentEscapeLight(baseURL) + "&" + percentEscapeLight(paramString)
 
-	fmt.Println(baseString)
+	//fmt.Println(baseString)
 	signature, err := x.signRequest([]byte(baseString))
 	if err != nil {
 		return []byte{}, 0, err

@@ -51,11 +51,11 @@ type InvoiceResponse struct {
 	Status       string     `json:"Status"`
 	ProviderName string     `json:"ProviderName"`
 	DateTimeUTC  string     `json:"DateTimeUTC"`
-	Invoices     []*Invoice `json:"Invoices"`
+	Invoices     []*Invoice `json:"Invoices" xml:"Invoices>Invoice"`
 }
 
 type InvoiceRequest struct {
-	XMLName xml.Name   `xml:"Invoices"`
+	XMLName  xml.Name   `xml:"Invoices"`
 	Invoices []*Invoice `json:"Invoices" xml:"Invoice"`
 }
 
