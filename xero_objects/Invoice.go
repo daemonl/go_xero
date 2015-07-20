@@ -77,6 +77,7 @@ type Invoice struct {
 	Total               *float64              `json:"Total,omitempty" xml:"Total,omitempty"`
 	TotalTax            *float64              `json:"TotalTax,omitempty" xml:"TotalTax,omitempty"`
 	LineItems           []InvoiceLineItem     `json:"LineItems" xml:"LineItems>LineItem"`
+	SentToContact       bool                  `json:"SentToContact" xml:"SentToContact"`
 }
 
 type InvoiceLineItem struct {
